@@ -29,12 +29,13 @@ typedef void *usb_osal_mutex_t;
 typedef void *usb_osal_mq_t;
 typedef void (*usb_thread_entry_t)(CONFIG_USB_OSAL_THREAD_SET_ARGV);
 typedef void (*usb_timer_handler_t)(void *argument);
-struct usb_osal_timer {
-    usb_timer_handler_t handler;
-    void *argument;
-    bool is_period;
-    uint32_t timeout_ms;
-    void *timer;
+struct usb_osal_timer 
+{
+  usb_timer_handler_t handler;
+  void *argument;
+  bool is_period;
+  uint32_t timeout_ms;
+  void *timer;
 };
 
 /*

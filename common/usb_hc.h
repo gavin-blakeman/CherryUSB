@@ -21,11 +21,12 @@ struct usbh_bus;
  *
  * Structure containing the USB Iso configuration.
  */
-struct usbh_iso_frame_packet {
-    uint8_t *transfer_buffer;
-    uint32_t transfer_buffer_length;
-    uint32_t actual_length;
-    int errorcode;
+struct usbh_iso_frame_packet 
+{
+  uint8_t *transfer_buffer;
+  uint32_t transfer_buffer_length;
+  uint32_t actual_length;
+  int errorcode;
 };
 
 /**
@@ -33,28 +34,29 @@ struct usbh_iso_frame_packet {
  *
  * Structure containing the USB Urb configuration.
  */
-struct usbh_urb {
-    usb_slist_t list;
-    void *hcpriv;
-    struct usbh_hubport *hport;
-    struct usb_endpoint_descriptor *ep;
-    uint8_t data_toggle;
-    uint32_t interval;
-    struct usb_setup_packet *setup;
-    uint8_t *transfer_buffer;
-    uint32_t transfer_buffer_length;
-    int transfer_flags;
-    uint32_t actual_length;
-    uint32_t timeout;
-    int errorcode;
-    uint32_t num_of_iso_packets;
-    uint32_t start_frame;
-    usbh_complete_callback_t complete;
-    void *arg;
+struct usbh_urb 
+{
+  usb_slist_t list;
+  void *hcpriv;
+  struct usbh_hubport *hport;
+  struct usb_endpoint_descriptor *ep;
+  uint8_t data_toggle;
+  uint32_t interval;
+  struct usb_setup_packet *setup;
+  uint8_t *transfer_buffer;
+  uint32_t transfer_buffer_length;
+  int transfer_flags;
+  uint32_t actual_length;
+  uint32_t timeout;
+  int errorcode;
+  uint32_t num_of_iso_packets;
+  uint32_t start_frame;
+  usbh_complete_callback_t complete;
+  void *arg;
 #if defined(__ICCARM__) || defined(__ICCRISCV__) || defined(__ICCRX__)
-    struct usbh_iso_frame_packet *iso_packet;
+  struct usbh_iso_frame_packet *iso_packet;
 #else
-    struct usbh_iso_frame_packet iso_packet[0];
+  struct usbh_iso_frame_packet iso_packet[0];
 #endif
 };
 
@@ -63,16 +65,17 @@ struct usbh_urb {
  *
  * Structure containing the USB host controller driver.
  */
-struct usbh_hc_driver {
-    const char *driver_name;
-    const char *driver_desc;
-    int (*init)(struct usbh_bus *bus);
-    int (*deinit)(struct usbh_bus *bus);
-    uint16_t (*get_frame_number)(struct usbh_bus *bus);
-    int (*roothub_control)(struct usbh_bus *bus, struct usb_setup_packet *setup, uint8_t *buf);
-    int (*submit_urb)(struct usbh_urb *urb);
-    int (*kill_urb)(struct usbh_urb *urb);
-    void (*irq_handler)(uint8_t busid);
+struct usbh_hc_driver 
+{
+  const char *driver_name;
+  const char *driver_desc;
+  int (*init)(struct usbh_bus *bus);
+  int (*deinit)(struct usbh_bus *bus);
+  uint16_t (*get_frame_number)(struct usbh_bus *bus);
+  int (*roothub_control)(struct usbh_bus *bus, struct usb_setup_packet *setup, uint8_t *buf);
+  int (*submit_urb)(struct usbh_urb *urb);
+  int (*kill_urb)(struct usbh_urb *urb);
+  void (*irq_handler)(uint8_t busid);
 };
 
 /**

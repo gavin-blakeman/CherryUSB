@@ -3,13 +3,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "usbh_core.h"
+#include "../../core/usbh_core.h"
 #include "usbh_msc.h"
 #include "usb_scsi.h"
 
 #undef USB_DBG_TAG
 #define USB_DBG_TAG "usbh_msc"
-#include "usb_log.h"
+#include "../../common/usb_log.h"
 
 #define DEV_FORMAT "/dev/sd%c"
 

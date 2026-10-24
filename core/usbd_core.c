@@ -1209,7 +1209,7 @@ static void __usbd_event_ep0_setup_complete_handler(uint8_t busid, struct usb_se
 #ifdef CONFIG_USBDEV_EP0_INDATA_NO_COPY
         g_usbd_core[busid].ep0_data_buf = buf;
 #else
-        usb_memcpy(g_usbd_core[busid].ep0_data_buf, buf, g_usbd_core[busid].ep0_data_buf_residue);
+        memcpy(g_usbd_core[busid].ep0_data_buf, buf, g_usbd_core[busid].ep0_data_buf_residue);
 #endif
     } else {
         /* use memcpy(*data, xxx, len); has copied into ep0 buffer, we do nothing */

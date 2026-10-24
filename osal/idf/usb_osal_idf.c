@@ -15,27 +15,27 @@ static portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 usb_osal_thread_t usb_osal_thread_create(const char *name, uint32_t stack_size, uint32_t prio, usb_thread_entry_t entry, void *args)
 {
-    TaskHandle_t htask = NULL;
-    stack_size /= sizeof(StackType_t);
-    xTaskCreatePinnedToCore(entry, name, stack_size, args, configMAX_PRIORITIES - 1 - prio, &htask, CONFIG_ESP_TIMER_TASK_AFFINITY);
-    return (usb_osal_thread_t)htask;
+  TaskHandle_t htask = NULL;
+  stack_size /= sizeof(StackType_t);
+  xTaskCreatePinnedToCore(entry, name, stack_size, args, configMAX_PRIORITIES - 1 - prio, &htask, CONFIG_ESP_TIMER_TASK_AFFINITY);
+  return (usb_osal_thread_t)htask;
 }
 
 void usb_osal_thread_delete(usb_osal_thread_t thread)
 {
-    vTaskDelete(thread);
+  vTaskDelete(thread);
 }
 
 void usb_osal_thread_schedule_other(void)
 {
-    TaskHandle_t xCurrentTask = xTaskGetCurrentTaskHandle();
-    const UBaseType_t old_priority = uxTaskPriorityGet(xCurrentTask);
+  TaskHandle_t xCurrentTask = xTaskGetCurrentTaskHandle();
+  const UBaseType_t old_priority = uxTaskPriorityGet(xCurrentTask);
 
-    vTaskPrioritySet(xCurrentTask, tskIDLE_PRIORITY);
+  vTaskPrioritySet(xCurrentTask, tskIDLE_PRIORITY);
 
-    taskYIELD();
+  taskYIELD();
 
-    vTaskPrioritySet(xCurrentTask, old_priority);
+  vTaskPrioritySet(xCurrentTask, old_priority);
 }
 
 usb_osal_sem_t usb_osal_sem_create(uint32_t initial_count)

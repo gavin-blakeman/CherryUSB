@@ -14,65 +14,72 @@
 
 usb_osal_thread_t usb_osal_thread_create(const char *name, uint32_t stack_size, uint32_t prio, usb_thread_entry_t entry, void *args)
 {
-    TaskHandle_t htask = NULL;
-    stack_size /= sizeof(StackType_t);
-    xTaskCreate(entry, name, stack_size, args, configMAX_PRIORITIES - 1 - prio, &htask);
-    if (htask == NULL) {
-        return NULL;
-    }
-    return (usb_osal_thread_t)htask;
+  TaskHandle_t htask = NULL;
+  stack_size /= sizeof(StackType_t);
+  xTaskCreate(entry, name, stack_size, args, configMAX_PRIORITIES - 1 - prio, &htask);
+  if (htask == NULL) 
+  {
+      return NULL;
+  }
+  return (usb_osal_thread_t)htask;
 }
 
 void usb_osal_thread_delete(usb_osal_thread_t thread)
 {
-    vTaskDelete(thread);
+  vTaskDelete(thread);
 }
 
 void usb_osal_thread_schedule_other(void)
 {
-    TaskHandle_t xCurrentTask = xTaskGetCurrentTaskHandle();
-    const UBaseType_t old_priority = uxTaskPriorityGet(xCurrentTask);
+  TaskHandle_t xCurrentTask = xTaskGetCurrentTaskHandle();
+  const UBaseType_t old_priority = uxTaskPriorityGet(xCurrentTask);
 
-    vTaskPrioritySet(xCurrentTask, tskIDLE_PRIORITY);
+  vTaskPrioritySet(xCurrentTask, tskIDLE_PRIORITY);
 
-    taskYIELD();
+  taskYIELD();
 
-    vTaskPrioritySet(xCurrentTask, old_priority);
+  vTaskPrioritySet(xCurrentTask, old_priority);
 }
 
 usb_osal_sem_t usb_osal_sem_create(uint32_t initial_count)
 {
-    return (usb_osal_sem_t)xSemaphoreCreateCounting(1, initial_count);
+  return (usb_osal_sem_t)xSemaphoreCreateCounting(1, initial_count);
 }
 
 usb_osal_sem_t usb_osal_sem_create_counting(uint32_t max_count)
 {
-    return (usb_osal_sem_t)xSemaphoreCreateCounting(max_count, 0);
+  return (usb_osal_sem_t)xSemaphoreCreateCounting(max_count, 0);
 }
 
 void usb_osal_sem_delete(usb_osal_sem_t sem)
 {
-    vSemaphoreDelete((SemaphoreHandle_t)sem);
+  vSemaphoreDelete((SemaphoreHandle_t)sem);
 }
 
 int usb_osal_sem_take(usb_osal_sem_t sem, uint32_t timeout)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    int ret;
+  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+  int ret;
 
-    if (xPortIsInsideInterrupt()) {
-        /* ISR context: only non-blocking take is allowed */
-        ret = xSemaphoreTakeFromISR((SemaphoreHandle_t)sem, &xHigherPriorityTaskWoken);
-        if (ret == pdPASS) {
-            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-        }
-    } else if (timeout == USB_OSAL_WAITING_FOREVER) {
-        ret = xSemaphoreTake((SemaphoreHandle_t)sem, portMAX_DELAY);
-    } else {
-        ret = xSemaphoreTake((SemaphoreHandle_t)sem, pdMS_TO_TICKS(timeout));
+  if (xPortIsInsideInterrupt()) 
+  {
+    /* ISR context: only non-blocking take is allowed */
+    ret = xSemaphoreTakeFromISR((SemaphoreHandle_t)sem, &xHigherPriorityTaskWoken);
+    if (ret == pdPASS) 
+    {
+      portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
+  } 
+  else if (timeout == USB_OSAL_WAITING_FOREVER) 
+  {
+    ret = xSemaphoreTake((SemaphoreHandle_t)sem, portMAX_DELAY);
+  } 
+  else 
+  {
+    ret = xSemaphoreTake((SemaphoreHandle_t)sem, pdMS_TO_TICKS(timeout));
+  }
 
-    return (ret == pdPASS) ? 0 : -USB_ERR_TIMEOUT;
+  return (ret == pdPASS) ? 0 : -USB_ERR_TIMEOUT;
 }
 
 int usb_osal_sem_give(usb_osal_sem_t sem)
