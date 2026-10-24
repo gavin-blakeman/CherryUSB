@@ -11,26 +11,27 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "usb_config.h"
-#include "usb_util.h"
-#include "usb_errno.h"
-#include "usb_def.h"
-#include "usb_list.h"
-#include "usb_log.h"
-#include "usb_hc.h"
-#include "usb_osal.h"
-#include "usbh_hub.h"
-#include "usb_memcpy.h"
-#include "usb_ringbuffer.h"
-#include "usb_mempool.h"
-#include "usb_dcache.h"
-#include "usb_version.h"
+#include "include/configuration.h"
+#include "../common/usb_util.h"
+#include "../common/usb_errno.h"
+#include "../common/usb_def.h"
+#include "../common/usb_list.h"
+//#include "../common/usb_log.h"
+#include "../common/usb_hc.h"
+#include "../common/usb_osal.h"
+#include "../class/hub/usbh_hub.h"
+//#include "../common/usb_memcpy.h"
+#include "../common/usb_ringbuffer.h"
+#include "../common/usb_mempool.h"
+#include "../common/usb_dcache.h"
+#include "../common/usb_version.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-enum usbh_event_type {
+enum usbh_event_type 
+{
     /* USB HCD IRQ */
     USBH_EVENT_ERROR,
     USBH_EVENT_SOF,

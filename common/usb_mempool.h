@@ -13,16 +13,17 @@
 #define CONFIG_USB_MEMPOOL_MAX_BLOCK_COUNT 16
 #endif
 
-struct usb_mempool {
-    usb_ringbuffer_t in;
-    usb_ringbuffer_t out;
-    usb_osal_sem_t out_sem;
+struct usb_mempool 
+{
+  usb_ringbuffer_t in;
+  usb_ringbuffer_t out;
+  usb_osal_sem_t out_sem;
 
-    void *block;
-    uint32_t block_size;
-    uint32_t block_count;
-    uint8_t in_buf[sizeof(uintptr_t) * CONFIG_USB_MEMPOOL_MAX_BLOCK_COUNT];
-    uint8_t out_buf[sizeof(uintptr_t) * CONFIG_USB_MEMPOOL_MAX_BLOCK_COUNT];
+  void *block;
+  uint32_t block_size;
+  uint32_t block_count;
+  uint8_t in_buf[sizeof(uintptr_t) * CONFIG_USB_MEMPOOL_MAX_BLOCK_COUNT];
+  uint8_t out_buf[sizeof(uintptr_t) * CONFIG_USB_MEMPOOL_MAX_BLOCK_COUNT];
 };
 
 #define usb_mempool_osal_sem_create(max_count) usb_osal_sem_create_counting(max_count)

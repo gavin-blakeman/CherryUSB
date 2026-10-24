@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "usbh_core.h"
-#include "usbh_hub.h"
+#include "../../../core/usbh_core.h"
+#include "../../../class/hub/usbh_hub.h"
 #include "usb_usbfs_reg.h"
 
 #if defined(CONFIG_USBHOST_MULT_HC)
@@ -22,103 +22,120 @@ int usbh_wch_usbfs_kill_urb(struct usbh_urb *urb);
 
 #define USBFSH ((USBFSH_TypeDef *)bus->hcd.reg_base)
 
-typedef enum {
-    USB_EP0_STATE_SETUP,
-    USB_EP0_STATE_DATA,
-    USB_EP0_STATE_STATUS,
+typedef enum 
+{
+  USB_EP0_STATE_SETUP,
+  USB_EP0_STATE_DATA,
+  USB_EP0_STATE_STATUS,
 } ep0_state_t;
 
-typedef enum {
-    XFER_STATE_IDLE,
-    XFER_STATE_BUSY,
-    XFER_STATE_COMP,
+typedef enum 
+{
+  XFER_STATE_IDLE,
+  XFER_STATE_BUSY,
+  XFER_STATE_COMP,
 } xfer_state_t;
 
-typedef enum {
-    ENDP_TOG_DATA0,
-    ENDP_TOG_DATA1,
-    ENDP_TOG_DATA2,
-    ENDP_TOG_MDATA,
+typedef enum 
+{
+  ENDP_TOG_DATA0,
+  ENDP_TOG_DATA1,
+  ENDP_TOG_DATA2,
+  ENDP_TOG_MDATA,
 } endp_tog_t;
 
 struct usbfs_pipe;
 
-typedef struct usbfs_xfer {
-    uint8_t pre;
-    uint8_t endp;
-    uint8_t token;
-    uint8_t toggle;
-    uint8_t dev_addr;
-    uint8_t xfer_state;
-    uint16_t length;
-    uint8_t *buffer;
-    struct usbfs_pipe *pipe;
-    struct usbfs_xfer *next;
+typedef struct usbfs_xfer 
+{
+  uint8_t pre;
+  uint8_t endp;
+  uint8_t token;
+  uint8_t toggle;
+  uint8_t dev_addr;
+  uint8_t xfer_state;
+  uint16_t length;
+  uint8_t *buffer;
+  struct usbfs_pipe *pipe;
+  struct usbfs_xfer *next;
 } usbfs_xfer_t;
 
-struct usbfs_pipe {
-    bool used;
-    bool killed;
-    uint8_t type;
-    uint8_t ep0_state;
-    uint32_t tick;
-    uint32_t interval;
-    usb_osal_sem_t waitsem;
-    usbfs_xfer_t xfer;
-    struct usbh_urb *urb;
-    struct usbfs_pipe *prev;
-    struct usbfs_pipe *next;
+struct usbfs_pipe 
+{
+  bool used;
+  bool killed;
+  uint8_t type;
+  uint8_t ep0_state;
+  uint32_t tick;
+  uint32_t interval;
+  usb_osal_sem_t waitsem;
+  usbfs_xfer_t xfer;
+  struct usbh_urb *urb;
+  struct usbfs_pipe *prev;
+  struct usbfs_pipe *next;
 };
 
-struct usbfs_hcd {
-    bool sof_act;
-    bool port_csc;
-    uint8_t speed;
-    uint32_t tick;
-    usbfs_xfer_t *curr_xfer;
-    struct usbfs_pipe *pipe_list[4];
-    struct usbfs_pipe pipe_pool[8];
+struct usbfs_hcd 
+{
+  bool sof_act;
+  bool port_csc;
+  uint8_t speed;
+  uint32_t tick;
+  usbfs_xfer_t *curr_xfer;
+  struct usbfs_pipe *pipe_list[4];
+  struct usbfs_pipe pipe_pool[8];
 } g_usbfs_hcd[CONFIG_USBHOST_MAX_BUS];
 
 static struct usbfs_pipe *usbfs_pipe_alloc(struct usbh_bus *bus, struct usbh_urb *urb, struct usb_endpoint_descriptor *ep)
 {
-    for (size_t chidx = 0; chidx < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); chidx++) {
-        if (!g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].used) {
-            uint8_t type = USB_GET_ENDPOINT_TYPE(ep->bmAttributes);
-            g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].used = true;
-            g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].killed = false;
-            g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].type = type;
-            g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].ep0_state = USB_EP0_STATE_SETUP;
-            if (type == USB_ENDPOINT_TYPE_ISOCHRONOUS || type == USB_ENDPOINT_TYPE_INTERRUPT) {
-                uint8_t interval = ep->bInterval;
-                if (type == USB_ENDPOINT_TYPE_ISOCHRONOUS) {
-                    g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].interval = 1 << (interval - 1);
-                } else {
-                    g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].interval = interval;
-                }
-            } else {
-                g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].interval = 0;
-            }
-
-            memset(&g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].xfer, 0, sizeof(usbfs_xfer_t));
-            g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].urb = urb;
-            if (g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type] == NULL) {
-                g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].prev = NULL;
-                g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type] = &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
-            } else {
-                struct usbfs_pipe *ppipe = g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type];
-                while (ppipe->next) {
-                    ppipe = ppipe->next;
-                }
-                g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].prev = ppipe;
-                ppipe->next = &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
-            }
-            g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].next = NULL;
-            return &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
+  for (size_t chidx = 0; chidx < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); chidx++) 
+  {
+    if (!g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].used) 
+    {
+      uint8_t type = USB_GET_ENDPOINT_TYPE(ep->bmAttributes);
+      g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].used = true;
+      g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].killed = false;
+      g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].type = type;
+      g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].ep0_state = USB_EP0_STATE_SETUP;
+      if (type == USB_ENDPOINT_TYPE_ISOCHRONOUS || type == USB_ENDPOINT_TYPE_INTERRUPT) 
+      {
+        uint8_t interval = ep->bInterval;
+        if (type == USB_ENDPOINT_TYPE_ISOCHRONOUS) 
+        {
+          g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].interval = 1 << (interval - 1);
+        } 
+        else 
+        {
+          g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].interval = interval;
         }
-    }
+      } 
+      else 
+      {
+        g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].interval = 0;
+      }
 
-    return NULL;
+      memset(&g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].xfer, 0, sizeof(usbfs_xfer_t));
+      g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].urb = urb;
+      if (g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type] == NULL) 
+      {
+        g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].prev = NULL;
+        g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type] = &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
+      } 
+      else 
+      {
+        struct usbfs_pipe *ppipe = g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type];
+        while (ppipe->next) 
+        {
+          ppipe = ppipe->next;
+        }
+        g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].prev = ppipe;
+        ppipe->next = &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
+      }
+      g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].next = NULL;
+      return &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
+    }
+  }
+  return NULL;
 }
 
 static void usbfs_pipe_free(struct usbh_bus *bus, struct usbfs_pipe *pipe, uint8_t type)
@@ -337,9 +354,9 @@ int usb_hc_init(struct usbh_bus *bus)
     memset(&g_usbfs_hcd[bus->hcd.hcd_id], 0, sizeof(struct usbfs_hcd));
     usb_hc_low_level_init(bus);
 
-    for (uint8_t i = 0; i < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); i++) {
-        g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[i].waitsem = usb_osal_sem_create(0);
-        USB_ASSERT(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[i].waitsem != NULL);
+    for (uint8_t i = 0; i < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); i++) 
+    {
+      g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[i].waitsem = usb_osal_sem_create(0);    
     }
 
     USBFSH->BASE_CTRL = USBFS_UC_HOST_MODE;
@@ -515,16 +532,13 @@ int usbh_roothub_control(struct usbh_bus *bus, struct usb_setup_packet *setup, u
 
 int usbh_submit_urb(struct usbh_urb *urb)
 {
-    if (!urb || !urb->hport || !urb->ep || !urb->hport->bus) {
-        return -USB_ERR_INVAL;
+    if (!urb || !urb->hport || !urb->ep || !urb->hport->bus) 
+    {
+      return -USB_ERR_INVAL;
     }
 
     int ret = 0;
-    struct usbh_bus *bus = urb->hport->bus;
-
-    /* dma addr must be aligned 4 bytes */
-    USB_ASSERT_MSG(!((uintptr_t)urb->setup % 4) && !((uintptr_t)urb->transfer_buffer % 4),
-                   "urb->setup or urb->transfer_buffer is not aligned 4 bytes");
+    struct usbh_bus *bus = urb->hport->bus;    
 
     if (!urb->hport->connected) {
         return -USB_ERR_NOTCONN;
@@ -600,30 +614,37 @@ int usbh_kill_urb(struct usbh_urb *urb)
 
 void USBH_IRQHandler(uint8_t busid)
 {
-    struct usbh_bus *bus = &g_usbhost_bus[busid];
+  struct usbh_bus *bus = &g_usbhost_bus[busid];
 
-    /* Get the interrupt flag */
-    uint8_t int_flag = USBFSH->INT_FG;
+  /* Get the interrupt flag */
+  uint8_t int_flag = USBFSH->INT_FG;
 
-    if (int_flag & USBFS_UIF_HST_SOF) {
-        g_usbfs_hcd[bus->hcd.hcd_id].tick++;
-        g_usbfs_hcd[bus->hcd.hcd_id].sof_act = true;
-        usbfs_transfer_start(bus);
-        USBFSH->INT_FG = USBFS_UIF_HST_SOF;
-    } else if (int_flag & USBFS_UIF_TRANSFER) {
-        USBFSH->HOST_EP_PID = 0x00;
-        usbfs_transfer_complete(bus, USBFSH->INT_ST & 0x0F, USBFSH->RX_LEN);
-        g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer = g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer->next;
-        USBFSH->INT_FG = USBFS_UIF_TRANSFER;
-        usbfs_transfer_start(bus);
-    } else if (int_flag & USBFS_UIF_DETECT) {
-        g_usbfs_hcd[bus->hcd.hcd_id].port_csc = 1;
-        bus->hcd.roothub.int_buffer[0] = (1 << 1);
-        usbh_hub_thread_wakeup(&bus->hcd.roothub);
-        USBFSH->INT_FG = USBFS_UIF_DETECT;
-    } else {
-        USBFSH->INT_FG = int_flag;
-    }
+  if (int_flag & USBFS_UIF_HST_SOF) 
+  {
+    g_usbfs_hcd[bus->hcd.hcd_id].tick++;
+    g_usbfs_hcd[bus->hcd.hcd_id].sof_act = true;
+    usbfs_transfer_start(bus);
+    USBFSH->INT_FG = USBFS_UIF_HST_SOF;
+  } 
+  else if (int_flag & USBFS_UIF_TRANSFER) 
+  {
+    USBFSH->HOST_EP_PID = 0x00;
+    usbfs_transfer_complete(bus, USBFSH->INT_ST & 0x0F, USBFSH->RX_LEN);
+    g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer = g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer->next;
+    USBFSH->INT_FG = USBFS_UIF_TRANSFER;
+    usbfs_transfer_start(bus);
+  } 
+  else if (int_flag & USBFS_UIF_DETECT) 
+  {
+    g_usbfs_hcd[bus->hcd.hcd_id].port_csc = 1;
+    bus->hcd.roothub.int_buffer[0] = (1 << 1);
+    usbh_hub_thread_wakeup(&bus->hcd.roothub);
+    USBFSH->INT_FG = USBFS_UIF_DETECT;
+  } 
+  else 
+  {
+    USBFSH->INT_FG = int_flag;
+  }
 }
 
 #if defined(CONFIG_USBHOST_MULT_HC)
