@@ -10,6 +10,10 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef __INCLUDE_NUTTX_CONFIG_H
 #define CONFIG_USB_OSAL_THREAD_SET_ARGV int argc, char **argv
 #define CONFIG_USB_OSAL_THREAD_GET_ARGV ((uintptr_t)strtoul(argv[1], NULL, 16))
@@ -74,5 +78,9 @@ void usb_osal_msleep(uint32_t delay);
 
 void *usb_osal_malloc(size_t size);
 void usb_osal_free(void *ptr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* USB_OSAL_H */

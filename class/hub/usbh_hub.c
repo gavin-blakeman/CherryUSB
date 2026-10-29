@@ -3,12 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "usbh_core.h"
+#include "../../core/usbh_core.h"
 #include "usbh_hub.h"
 
 #undef USB_DBG_TAG
 #define USB_DBG_TAG "usbh_hub"
-#include "usb_log.h"
+#include "../../common/usb_log.h"
 
 #define DEV_FORMAT "/dev/hub%d"
 
@@ -671,36 +671,39 @@ static void usbh_hub_events(struct usbh_hub *hub)
 
 static void usbh_hub_thread(CONFIG_USB_OSAL_THREAD_SET_ARGV)
 {
-    struct usbh_hub *hub;
-    struct usbh_hubport *hport;
-    int ret = 0;
+  struct usbh_hub *hub;
+  struct usbh_hubport *hport;
+  int ret = 0;
 
-    struct usbh_bus *bus = (struct usbh_bus *)CONFIG_USB_OSAL_THREAD_GET_ARGV;
+  struct usbh_bus *bus = (struct usbh_bus *)CONFIG_USB_OSAL_THREAD_GET_ARGV;
 
-    bus->event_handler(bus->busid, USB_HUB_INDEX_ANY, USB_HUB_PORT_ANY, USB_INTERFACE_ANY, USBH_EVENT_INIT);
-    usb_hc_init(bus);
+  bus->event_handler(bus->busid, USB_HUB_INDEX_ANY, USB_HUB_PORT_ANY, USB_INTERFACE_ANY, USBH_EVENT_INIT);
+  usb_hc_init(bus);
 
-    while (1) {
-        ret = usb_osal_mq_recv(bus->hub_mq, (uintptr_t *)&hub, USB_OSAL_WAITING_FOREVER);
-        if (ret < 0) {
-            continue;
-        }
-        if (hub == NULL) {
-            break;
-        }
-        usbh_hub_events(hub);
+  while (1) 
+  {
+    ret = usb_osal_mq_recv(bus->hub_mq, (uintptr_t *)&hub, USB_OSAL_WAITING_FOREVER);
+    if (ret < 0) 
+    {
+      continue;
     }
-
-    hub = &bus->hcd.roothub;
-    for (uint8_t port = 0; port < hub->nports; port++) {
-        hport = &hub->child[port];
-
-        usbh_hubport_release(hport);
+    if (hub == NULL) 
+    {
+      break;
     }
-    usb_hc_deinit(bus);
-    usb_osal_mq_delete(bus->hub_mq);
-    usb_osal_sem_give(bus->hub_sem);
-    usb_osal_thread_delete(NULL);
+    usbh_hub_events(hub);
+  }
+
+  hub = &bus->hcd.roothub;
+  for (uint8_t port = 0; port < hub->nports; port++) 
+  {
+    hport = &hub->child[port];
+    usbh_hubport_release(hport);
+  }
+  usb_hc_deinit(bus);
+  usb_osal_mq_delete(bus->hub_mq);
+  usb_osal_sem_give(bus->hub_sem);
+  usb_osal_thread_delete(NULL);
 }
 
 void usbh_hub_thread_wakeup(struct usbh_hub *hub)
@@ -710,38 +713,41 @@ void usbh_hub_thread_wakeup(struct usbh_hub *hub)
 
 int usbh_hub_initialize(struct usbh_bus *bus)
 {
-    char thread_name[32] = { 0 };
-    struct usbh_hub *hub;
+  char thread_name[32] = { 0 };
+  struct usbh_hub *hub;
 
-    hub = &bus->hcd.roothub;
-    hub->connected = true;
-    hub->index = 1;
-    hub->is_roothub = true;
-    hub->parent = NULL;
-    hub->hub_addr = 1;
-    hub->nports = CONFIG_USBHOST_MAX_RHPORTS;
-    hub->int_buffer = bus->hcd.roothub_intbuf;
-    hub->bus = bus;
+  hub = &bus->hcd.roothub;
+  hub->connected = true;
+  hub->index = 1;
+  hub->is_roothub = true;
+  hub->parent = NULL;
+  hub->hub_addr = 1;
+  hub->nports = CONFIG_USBHOST_MAX_RHPORTS;
+  hub->int_buffer = bus->hcd.roothub_intbuf;
+  hub->bus = bus;
 
-    bus->hub_mq = usb_osal_mq_create(7);
-    if (bus->hub_mq == NULL) {
-        return -USB_ERR_NOMEM;
-    }
+  bus->hub_mq = usb_osal_mq_create(7);
+  if (bus->hub_mq == NULL) 
+  {
+      return -USB_ERR_NOMEM;
+  }
 
-    bus->hub_sem = usb_osal_sem_create(0);
-    if (bus->hub_sem == NULL) {
-        usb_osal_mq_delete(bus->hub_mq);
-        return -USB_ERR_NOMEM;
-    }
+  bus->hub_sem = usb_osal_sem_create(0);
+  if (bus->hub_sem == NULL) 
+  {
+    usb_osal_mq_delete(bus->hub_mq);
+    return -USB_ERR_NOMEM;
+  }
 
-    snprintf(thread_name, 32, "usbh_hub%u", bus->busid);
-    bus->hub_thread = usb_osal_thread_create(thread_name, CONFIG_USBHOST_PSC_STACKSIZE, CONFIG_USBHOST_PSC_PRIO, usbh_hub_thread, bus);
-    if (bus->hub_thread == NULL) {
-        usb_osal_mq_delete(bus->hub_mq);
-        usb_osal_sem_delete(bus->hub_sem);
-        return -USB_ERR_NOMEM;
-    }
-    return 0;
+  snprintf(thread_name, 32, "usbh_hub%u", bus->busid);
+  bus->hub_thread = usb_osal_thread_create(thread_name, CONFIG_USBHOST_PSC_STACKSIZE, CONFIG_USBHOST_PSC_PRIO, usbh_hub_thread, bus);
+  if (bus->hub_thread == NULL) 
+  {
+    usb_osal_mq_delete(bus->hub_mq);
+    usb_osal_sem_delete(bus->hub_sem);
+    return -USB_ERR_NOMEM;
+  }
+  return 0;
 }
 
 int usbh_hub_deinitialize(struct usbh_bus *bus)

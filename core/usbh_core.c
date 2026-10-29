@@ -14,13 +14,15 @@ struct usbh_class_info *usbh_class_info_table_end = NULL;
 
 usb_slist_t g_bus_head = USB_SLIST_OBJECT_INIT(g_bus_head);
 
-struct setup_align_buffer {
-    uint8_t buffer[USB_ALIGN_UP(8, CONFIG_USB_ALIGN_SIZE)];
+struct setup_align_buffer 
+{
+  uint8_t buffer[USB_ALIGN_UP(8, CONFIG_USB_ALIGN_SIZE)];
 };
 
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t ep0_request_buffer[CONFIG_USBHOST_MAX_BUS][USB_ALIGN_UP(CONFIG_USBHOST_REQUEST_BUFFER_LEN, CONFIG_USB_ALIGN_SIZE)];
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX struct setup_align_buffer g_setup_buffer[CONFIG_USBHOST_MAX_BUS][CONFIG_USBHOST_MAX_EXTHUBS + 1][CONFIG_USBHOST_MAX_EHPORTS];
 
+// Global buffer for storing bus information.
 struct usbh_bus g_usbhost_bus[CONFIG_USBHOST_MAX_BUS];
 
 /* general descriptor field offsets */
@@ -33,37 +35,41 @@ struct usbh_bus g_usbhost_bus[CONFIG_USBHOST_MAX_BUS];
 
 static void dummy_event_handler(uint8_t busid, uint8_t hub_index, uint8_t hub_port, uint8_t intf, uint8_t event)
 {
-    (void)busid;
-    (void)hub_index;
-    (void)hub_port;
-    (void)intf;
-    (void)event;
+  (void)busid;
+  (void)hub_index;
+  (void)hub_port;
+  (void)intf;
+  (void)event;
 }
 
 static int usbh_allocate_devaddr(struct usbh_devaddr_map *devgen)
 {
-    uint8_t lastaddr = devgen->last;
-    uint8_t devaddr = lastaddr;
-    int index;
-    int bitno;
+  uint8_t lastaddr = devgen->last;
+  uint8_t devaddr = lastaddr;
+  int index;
+  int bitno;
 
-    for (;;) {
-        devaddr++;
-        if (devaddr > 0x7f) {
-            devaddr = 2;
-        }
-        if (devaddr == lastaddr) {
-            return -USB_ERR_NOMEM;
-        }
-
-        index = devaddr >> 5;
-        bitno = devaddr & 0x1f;
-        if ((devgen->alloctab[index] & (1ul << bitno)) == 0) {
-            devgen->alloctab[index] |= (1ul << bitno);
-            devgen->last = devaddr;
-            return (int)devaddr;
-        }
+  for (;;) 
+  {
+    devaddr++;
+    if (devaddr > 0x7f) 
+    {
+      devaddr = 2;
     }
+    if (devaddr == lastaddr) 
+    {
+      return -USB_ERR_NOMEM;
+    }
+
+    index = devaddr >> 5;
+    bitno = devaddr & 0x1f;
+    if ((devgen->alloctab[index] & (1ul << bitno)) == 0) 
+    {
+      devgen->alloctab[index] |= (1ul << bitno);
+      devgen->last = devaddr;
+      return (int)devaddr;
+    }
+  }
 }
 
 static int __usbh_free_devaddr(struct usbh_devaddr_map *devgen, uint8_t devaddr)
@@ -142,23 +148,6 @@ static int parse_device_descriptor(struct usbh_hubport *hport, struct usb_device
         if (length <= 8) {
             return 0;
         }
-#if 0
-        USB_LOG_DBG("Device Descriptor:\r\n");
-        USB_LOG_DBG("bLength: 0x%02x           \r\n", desc->bLength);
-        USB_LOG_DBG("bDescriptorType: 0x%02x   \r\n", desc->bDescriptorType);
-        USB_LOG_DBG("bcdUSB: 0x%04x            \r\n", desc->bcdUSB);
-        USB_LOG_DBG("bDeviceClass: 0x%02x      \r\n", desc->bDeviceClass);
-        USB_LOG_DBG("bDeviceSubClass: 0x%02x   \r\n", desc->bDeviceSubClass);
-        USB_LOG_DBG("bDeviceProtocol: 0x%02x   \r\n", desc->bDeviceProtocol);
-        USB_LOG_DBG("bMaxPacketSize0: 0x%02x   \r\n", desc->bMaxPacketSize0);
-        USB_LOG_DBG("idVendor: 0x%04x          \r\n", desc->idVendor);
-        USB_LOG_DBG("idProduct: 0x%04x         \r\n", desc->idProduct);
-        USB_LOG_DBG("bcdDevice: 0x%04x         \r\n", desc->bcdDevice);
-        USB_LOG_DBG("iManufacturer: 0x%02x     \r\n", desc->iManufacturer);
-        USB_LOG_DBG("iProduct: 0x%02x          \r\n", desc->iProduct);
-        USB_LOG_DBG("iSerialNumber: 0x%02x     \r\n", desc->iSerialNumber);
-        USB_LOG_DBG("bNumConfigurations: 0x%02x\r\n", desc->bNumConfigurations);
-#endif
         hport->device_desc.bLength = desc->bLength;
         hport->device_desc.bDescriptorType = desc->bDescriptorType;
         hport->device_desc.bcdUSB = desc->bcdUSB;
@@ -571,52 +560,55 @@ void usbh_hubport_release(struct usbh_hubport *hport)
 static void usbh_bus_init(struct usbh_bus *bus, uint8_t busid, uintptr_t reg_base)
 {
 #if defined(CONFIG_USBHOST_MULT_HC)
-    const struct usbh_hc_driver *hc_driver = bus->hc_driver;
+  const struct usbh_hc_driver *hc_driver = bus->hc_driver;
 #endif
 
-    memset(bus, 0, sizeof(struct usbh_bus));
-    bus->busid = busid;
-    bus->hcd.hcd_id = busid;
-    bus->hcd.reg_base = reg_base;
+  memset(bus, 0, sizeof(struct usbh_bus));
+  bus->busid = busid;
+  bus->hcd.hcd_id = busid;
+  bus->hcd.reg_base = reg_base;
 #if defined(CONFIG_USBHOST_MULT_HC)
-    bus->hc_driver = hc_driver;
+  bus->hc_driver = hc_driver;
 #endif
-    /* devaddr 1 is for roothub */
-    bus->devgen.last = 0x7f;
+  /* devaddr 1 is for roothub */
+  bus->devgen.last = 0x7f;
 
-    usb_slist_add_tail(&g_bus_head, &bus->list);
+  usb_slist_add_tail(&g_bus_head, &bus->list);
 }
 
 int usbh_initialize(uint8_t busid, uintptr_t reg_base, usbh_event_handler_t event_handler)
 {
-    struct usbh_bus *bus;
+  struct usbh_bus *bus;
 
-    bus = &g_usbhost_bus[busid];
+  bus = &g_usbhost_bus[busid];      /* Get the structure address of the Bus data. Static allocation. */
 
-    usbh_bus_init(bus, busid, reg_base);
+  usbh_bus_init(bus, busid, reg_base);
 
-    if (event_handler) {
-        bus->event_handler = event_handler;
-    } else {
-        bus->event_handler = dummy_event_handler;
-    }
+  if (event_handler) 
+  {
+    bus->event_handler = event_handler;
+  } 
+  else 
+  {
+    bus->event_handler = dummy_event_handler;
+  }
 
 #ifdef __ARMCC_VERSION /* ARM C Compiler */
-    extern const int usbh_class_info$$Base;
-    extern const int usbh_class_info$$Limit;
-    usbh_class_info_table_begin = (struct usbh_class_info *)&usbh_class_info$$Base;
-    usbh_class_info_table_end = (struct usbh_class_info *)&usbh_class_info$$Limit;
+  extern const int usbh_class_info$$Base;
+  extern const int usbh_class_info$$Limit;
+  usbh_class_info_table_begin = (struct usbh_class_info *)&usbh_class_info$$Base;
+  usbh_class_info_table_end = (struct usbh_class_info *)&usbh_class_info$$Limit;
 #elif defined(__GNUC__)
-    extern uint32_t __usbh_class_info_start__;
-    extern uint32_t __usbh_class_info_end__;
-    usbh_class_info_table_begin = (struct usbh_class_info *)&__usbh_class_info_start__;
-    usbh_class_info_table_end = (struct usbh_class_info *)&__usbh_class_info_end__;
+  extern uint32_t __usbh_class_info_start__;
+  extern uint32_t __usbh_class_info_end__;
+  usbh_class_info_table_begin = (struct usbh_class_info *)&__usbh_class_info_start__;
+  usbh_class_info_table_end = (struct usbh_class_info *)&__usbh_class_info_end__;
 #elif defined(__ICCARM__) || defined(__ICCRX__) || defined(__ICCRISCV__)
-    usbh_class_info_table_begin = (struct usbh_class_info *)__section_begin(".usbh_class_info");
-    usbh_class_info_table_end = (struct usbh_class_info *)__section_end(".usbh_class_info");
+  usbh_class_info_table_begin = (struct usbh_class_info *)__section_begin(".usbh_class_info");
+  usbh_class_info_table_end = (struct usbh_class_info *)__section_end(".usbh_class_info");
 #endif
-    usbh_hub_initialize(bus);
-    return 0;
+  usbh_hub_initialize(bus);
+  return 0;
 }
 
 int usbh_deinitialize(uint8_t busid)
@@ -974,13 +966,16 @@ void usbh_register_hc_driver(uint8_t busid, const struct usbh_hc_driver *driver)
     g_usbhost_bus[busid].hc_driver = driver;
 }
 
-int usb_hc_init(struct usbh_bus *bus)
+int __WEAK usb_hc_init(struct usbh_bus *bus)
 {
-    if (bus && bus->hc_driver && bus->hc_driver->init) {
-        return bus->hc_driver->init(bus);
-    } else {
-        return -USB_ERR_INVAL;
-    }
+  if (bus && bus->hc_driver && bus->hc_driver->init) 
+  {
+    return bus->hc_driver->init(bus);
+  } 
+  else 
+  {
+    return -USB_ERR_INVAL;
+  }
 }
 
 int usb_hc_deinit(struct usbh_bus *bus)

@@ -408,8 +408,8 @@ static void usbfs_transfer_complete(struct usbh_bus *bus, uint8_t recv_pid, size
   return;
 }
 
-extern void usb_hc_low_level_init(struct usbh_bus *bus);
-extern void usb_hc_low_level_deinit(struct usbh_bus *bus);
+extern "C" void usb_hc_low_level_init(struct usbh_bus *bus);
+extern "C" void usb_hc_low_level_deinit(struct usbh_bus *bus);
 
 extern "C" int usb_hc_init(struct usbh_bus *bus)
 {

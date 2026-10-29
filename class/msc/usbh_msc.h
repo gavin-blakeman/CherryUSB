@@ -9,19 +9,24 @@
 #include "usb_msc.h"
 #include "usb_scsi.h"
 
-struct usbh_msc {
-    struct usbh_hubport *hport;
-    struct usb_endpoint_descriptor *bulkin;  /* Bulk IN endpoint */
-    struct usb_endpoint_descriptor *bulkout; /* Bulk OUT endpoint */
-    struct usbh_urb bulkin_urb;              /* Bulk IN urb */
-    struct usbh_urb bulkout_urb;             /* Bulk OUT urb */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    uint8_t intf; /* Data interface number */
-    uint8_t sdchar;
-    uint32_t blocknum;  /* Number of blocks on the USB mass storage device */
-    uint16_t blocksize; /* Block size of USB mass storage device */
+struct usbh_msc 
+{
+  struct usbh_hubport *hport;
+  struct usb_endpoint_descriptor *bulkin;  /* Bulk IN endpoint */
+  struct usb_endpoint_descriptor *bulkout; /* Bulk OUT endpoint */
+  struct usbh_urb bulkin_urb;              /* Bulk IN urb */
+  struct usbh_urb bulkout_urb;             /* Bulk OUT urb */
 
-    void *user_data;
+  uint8_t intf; /* Data interface number */
+  uint8_t sdchar;
+  uint32_t blocknum;  /* Number of blocks on the USB mass storage device */
+  uint16_t blocksize; /* Block size of USB mass storage device */
+
+  void *user_data;
 };
 
 struct usbh_msc_modeswitch_config {
@@ -38,10 +43,6 @@ int usbh_msc_scsi_read10(struct usbh_msc *msc_class, uint32_t start_sector, cons
 
 void usbh_msc_run(struct usbh_msc *msc_class);
 void usbh_msc_stop(struct usbh_msc *msc_class);
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef __cplusplus
 }
