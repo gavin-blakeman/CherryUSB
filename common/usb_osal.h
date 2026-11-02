@@ -14,16 +14,8 @@
 extern "C" {
 #endif
 
-#ifdef __INCLUDE_NUTTX_CONFIG_H
-#define CONFIG_USB_OSAL_THREAD_SET_ARGV int argc, char **argv
-#define CONFIG_USB_OSAL_THREAD_GET_ARGV ((uintptr_t)strtoul(argv[1], NULL, 16))
-#elif defined(__ZEPHYR__)
-#define CONFIG_USB_OSAL_THREAD_SET_ARGV void *p1, void *p2, void *p3
-#define CONFIG_USB_OSAL_THREAD_GET_ARGV ((uintptr_t)p1)
-#else
 #define CONFIG_USB_OSAL_THREAD_SET_ARGV void *argument
 #define CONFIG_USB_OSAL_THREAD_GET_ARGV ((uintptr_t)argument)
-#endif
 
 #define USB_OSAL_WAITING_FOREVER (0xFFFFFFFFU)
 
@@ -49,7 +41,11 @@ usb_osal_thread_t usb_osal_thread_create(const char *name, uint32_t stack_size, 
 void usb_osal_thread_delete(usb_osal_thread_t thread);
 void usb_osal_thread_schedule_other(void);
 
-usb_osal_sem_t usb_osal_sem_create(uint32_t initial_count);
+/// @brief      Create a binary sempahore with the given initial state.
+/// @param[in]  initial_status: The initial count of the semaphore.
+/// @returns    The handle to the semaphore.
+usb_osal_sem_t usb_osal_sem_create(bool initial_state);
+
 usb_osal_sem_t usb_osal_sem_create_counting(uint32_t max_count);
 void usb_osal_sem_delete(usb_osal_sem_t sem);
 int usb_osal_sem_take(usb_osal_sem_t sem, uint32_t timeout);

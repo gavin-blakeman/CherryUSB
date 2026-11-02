@@ -1,0 +1,143 @@
+/*
+ * Copyright (c) 2024, sakumisu
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#include "usbh_fatfs.h"
+#include "../../core/usbh_core.h"
+#include "../../class/msc/usbh_msc.h"
+
+// Standard C++ library
+#include <cstdint>
+#include <cstring>
+
+struct usbh_msc *active_msc_class;
+
+extern "C" int USB_disk_initialize()
+{
+  active_msc_class = (struct usbh_msc *)usbh_find_class_instance("/dev/sda");
+  if (active_msc_class == nullptr) 
+  {
+    return RES_NOTRDY;
+  }
+  if (usbh_msc_scsi_init(active_msc_class) < 0) 
+  {
+    return RES_NOTRDY;
+  }
+
+  if ((active_msc_class->blocksize < FF_MIN_SS) || (active_msc_class->blocksize > FF_MAX_SS)) 
+  {
+    return RES_NOTRDY;
+  }
+  return RES_OK;
+}
+
+extern "C" int USB_disk_status(void)
+{
+  return RES_OK;
+}
+
+extern "C" int USB_disk_read(BYTE *buff, LBA_t sector, UINT count)
+{
+  int ret;
+  uint8_t *align_buf;
+
+  align_buf = reinterpret_cast<std::uint8_t *>(buff);
+
+  // If the buffer is not aligned get a buffer that is aligned.
+  if (reinterpret_cast<std::uint32_t>(buff) & (CONFIG_USB_ALIGN_SIZE - 1)) 
+  {
+    align_buf = reinterpret_cast<std::uint8_t *>(aligned_alloc(CONFIG_USB_ALIGN_SIZE, count * active_msc_class->blocksize));
+    if (!align_buf) 
+    {
+      //USB_LOG_ERR("msc get align buf failed\r\n");
+      return -USB_ERR_NOMEM;
+    }
+  }
+
+  ret = usbh_msc_scsi_read10(active_msc_class, sector, align_buf, count);
+  if (ret < 0) 
+  {
+    ret = RES_ERROR;
+  } 
+  else 
+  {
+    ret = RES_OK;
+  }
+
+  if (reinterpret_cast<std::uint32_t>(buff) & (CONFIG_USB_ALIGN_SIZE - 1))
+  {
+    std::memcpy(buff, align_buf, count * active_msc_class->blocksize);
+    free(align_buf);
+  }
+
+  return ret;
+}
+
+int USB_disk_write(const BYTE *buff, LBA_t sector, UINT count)
+{
+  int ret;
+  uint8_t *align_buf;
+
+  align_buf = (uint8_t *)buff;
+
+  if ((uint32_t)buff & (CONFIG_USB_ALIGN_SIZE - 1)) 
+  {
+    align_buf = (uint8_t *)aligned_alloc(CONFIG_USB_ALIGN_SIZE, count * active_msc_class->blocksize);
+    if (!align_buf) 
+    {
+      //USB_LOG_ERR("msc get align buf failed\r\n");
+      return -USB_ERR_NOMEM;
+    }
+    memcpy(align_buf, buff, count * active_msc_class->blocksize);
+  }
+
+  ret = usbh_msc_scsi_write10(active_msc_class, sector, align_buf, count);
+  if (ret < 0) 
+  {
+    ret = RES_ERROR;
+  } 
+  else
+  {
+    ret = RES_OK;
+  }
+
+  if ((uint32_t)buff & (CONFIG_USB_ALIGN_SIZE - 1)) 
+  {
+    free(align_buf);
+  }
+
+    return ret;
+}
+
+int USB_disk_ioctl(BYTE cmd, void *buff)
+{
+    int result = 0;
+
+    switch (cmd) {
+        case CTRL_SYNC:
+            result = RES_OK;
+            break;
+
+        case GET_SECTOR_SIZE:
+            *(WORD *)buff = active_msc_class->blocksize;
+            result = RES_OK;
+            break;
+
+        case GET_BLOCK_SIZE:
+            *(DWORD *)buff = 1;
+            result = RES_OK;
+            break;
+
+        case GET_SECTOR_COUNT:
+            *(DWORD *)buff = active_msc_class->blocknum;
+            result = RES_OK;
+            break;
+
+        default:
+            result = RES_PARERR;
+            break;
+    }
+
+    return result;
+}

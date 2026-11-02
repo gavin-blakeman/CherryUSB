@@ -7,6 +7,10 @@
 #include "../../../core/usbh_core.h"
 #include "../../../class/hub/usbh_hub.h"
 
+// Standard C++ library header files
+#include <cstdint>
+#include <cstring>
+
 #include "include/CH32V303.hpp"
 
 #if defined(CONFIG_USBHOST_MULT_HC)
@@ -21,52 +25,52 @@
 int usbh_wch_usbfs_kill_urb(struct usbh_urb *urb);
 #endif
 
-typedef enum 
+enum ep0_state_t
 {
   USB_EP0_STATE_SETUP,
   USB_EP0_STATE_DATA,
   USB_EP0_STATE_STATUS,
-} ep0_state_t;
+};
 
-typedef enum 
+enum xfer_state_t
 {
   XFER_STATE_IDLE,
   XFER_STATE_BUSY,
   XFER_STATE_COMP,
-} xfer_state_t;
+};
 
-typedef enum 
+enum endp_tog_t
 {
   ENDP_TOG_DATA0,
   ENDP_TOG_DATA1,
   ENDP_TOG_DATA2,
   ENDP_TOG_MDATA,
-} endp_tog_t;
+};
 
 struct usbfs_pipe;
 
-typedef struct usbfs_xfer 
+struct usbfs_xfer_t 
 {
-  uint8_t pre;
-  uint8_t endp;
-  uint8_t token;
-  uint8_t toggle;
-  uint8_t dev_addr;
-  uint8_t xfer_state;
-  uint16_t length;
-  uint8_t *buffer;
-  struct usbfs_pipe *pipe;
-  struct usbfs_xfer *next;
-} usbfs_xfer_t;
+  std::uint8_t pre;
+  std::uint8_t endp;
+  std::uint8_t token;
+  std::uint8_t toggle;
+  std::uint8_t dev_addr;
+  std::uint8_t xfer_state;
+  std::uint16_t length;
+  std::uint8_t *buffer;
+  usbfs_pipe *pipe;
+  usbfs_xfer_t *next;
+};
 
 struct usbfs_pipe 
 {
   bool used;
   bool killed;
-  uint8_t type;
-  uint8_t ep0_state;
-  uint32_t tick;
-  uint32_t interval;
+  std::uint8_t type;
+  std::uint8_t ep0_state;
+  std::uint32_t tick;
+  std::uint32_t interval;
   usb_osal_sem_t waitsem;
   usbfs_xfer_t xfer;
   struct usbh_urb *urb;
@@ -83,15 +87,20 @@ struct usbfs_hcd
   usbfs_xfer_t *curr_xfer;
   struct usbfs_pipe *pipe_list[4];
   struct usbfs_pipe pipe_pool[8];
-} g_usbfs_hcd[CONFIG_USBHOST_MAX_BUS];
+};
 
-static struct usbfs_pipe *usbfs_pipe_alloc(struct usbh_bus *bus, struct usbh_urb *urb, struct usb_endpoint_descriptor *ep)
+static usbfs_hcd g_usbfs_hcd[CONFIG_USBHOST_MAX_BUS];
+
+extern "C" void usb_hc_low_level_init(struct usbh_bus *bus);
+extern "C" void usb_hc_low_level_deinit(struct usbh_bus *bus);
+
+static usbfs_pipe *usbfs_pipe_alloc(struct usbh_bus *bus, struct usbh_urb *urb, struct usb_endpoint_descriptor *ep)
 {
-  for (size_t chidx = 0; chidx < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); chidx++) 
+  for (std::size_t chidx = 0; chidx < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); chidx++) 
   {
     if (!g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].used) 
     {
-      uint8_t type = USB_GET_ENDPOINT_TYPE(ep->bmAttributes);
+      std::uint8_t type = USB_GET_ENDPOINT_TYPE(ep->bmAttributes);
       g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].used = true;
       g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].killed = false;
       g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].type = type;
@@ -113,11 +122,11 @@ static struct usbfs_pipe *usbfs_pipe_alloc(struct usbh_bus *bus, struct usbh_urb
         g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].interval = 0;
       }
 
-      memset(&g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].xfer, 0, sizeof(usbfs_xfer_t));
+      std::memset(&g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].xfer, 0, sizeof(usbfs_xfer_t));
       g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].urb = urb;
-      if (g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type] == NULL) 
+      if (g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type] == nullptr) 
       {
-        g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].prev = NULL;
+        g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx].prev = nullptr;
         g_usbfs_hcd[bus->hcd.hcd_id].pipe_list[type] = &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
       } 
       else 
@@ -134,7 +143,7 @@ static struct usbfs_pipe *usbfs_pipe_alloc(struct usbh_bus *bus, struct usbh_urb
       return &g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[chidx];
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 static void usbfs_pipe_free(struct usbh_bus *bus, struct usbfs_pipe *pipe, uint8_t type)
@@ -253,7 +262,7 @@ static void usbfs_transfer_start(struct usbh_bus *bus)
 
   if (g_usbfs_hcd[bus->hcd.hcd_id].sof_act || !g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer) 
   {
-    g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer = NULL;
+    g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer = nullptr;
     usbfs_xfer_t **last_xfer = &g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer;
 
     if (g_usbfs_hcd[bus->hcd.hcd_id].sof_act) 
@@ -265,7 +274,7 @@ static void usbfs_transfer_start(struct usbh_bus *bus)
 
     last_xfer = usbfs_xfer_process(bus, last_xfer, USB_ENDPOINT_TYPE_CONTROL);
     last_xfer = usbfs_xfer_process(bus, last_xfer, USB_ENDPOINT_TYPE_BULK);
-    *last_xfer = NULL;
+    *last_xfer = nullptr;
   }
 
   if (g_usbfs_hcd[bus->hcd.hcd_id].curr_xfer) 
@@ -287,7 +296,7 @@ static void usbfs_transfer_start(struct usbh_bus *bus)
 
     if (xfer->token == USB_PID_IN) 
     {
-      USBFSH.HOST_RX_DMA = (uint32_t)xfer->buffer;
+      USBFSH.HOST_RX_DMA = reinterpret_cast<uint32_t>(xfer->buffer);
       USBFSH.HOST_RX_CTRL = (xfer->toggle == ENDP_TOG_DATA1 ? USBFS_UH_R_TOG : 0) |
                             (type == USB_ENDPOINT_TYPE_ISOCHRONOUS ? USBFS_UH_R_RES : 0);
       USBFSH.HOST_EP_PID = (xfer->token << 4) | xfer->endp;
@@ -295,7 +304,7 @@ static void usbfs_transfer_start(struct usbh_bus *bus)
     else 
     {
       USBFSH.HOST_TX_LEN = xfer->length;
-      USBFSH.HOST_TX_DMA =reinterpret_cast<uint32_t>(xfer->buffer);
+      USBFSH.HOST_TX_DMA = reinterpret_cast<uint32_t>(xfer->buffer);
       USBFSH.HOST_TX_CTRL = (xfer->toggle == ENDP_TOG_DATA1 ? USBFS_UH_T_TOG : 0) |
                             (type == USB_ENDPOINT_TYPE_ISOCHRONOUS ? USBFS_UH_T_RES : 0);
       USBFSH.HOST_EP_PID = (xfer->token << 4) | xfer->endp;
@@ -408,17 +417,16 @@ static void usbfs_transfer_complete(struct usbh_bus *bus, uint8_t recv_pid, size
   return;
 }
 
-extern "C" void usb_hc_low_level_init(struct usbh_bus *bus);
-extern "C" void usb_hc_low_level_deinit(struct usbh_bus *bus);
-
 extern "C" int usb_hc_init(struct usbh_bus *bus)
 {
-  memset(&g_usbfs_hcd[bus->hcd.hcd_id], 0, sizeof(struct usbfs_hcd));
+  // Clear the usb_hcd structure.
+  std::memset(&g_usbfs_hcd[bus->hcd.hcd_id], 0, sizeof(struct usbfs_hcd));
   usb_hc_low_level_init(bus);
 
-  for (uint8_t i = 0; i < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); i++) 
+  // Initialise the usb_hcd structure.
+  for (std::uint8_t i = 0; i < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); i++) 
   {
-    g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[i].waitsem = usb_osal_sem_create(0);    
+    g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[i].waitsem = usb_osal_sem_create(false);    
   }
 
   USBFSH.BASE_CTRL = USBFS_UC_HOST_MODE;
@@ -443,7 +451,7 @@ extern "C" int usb_hc_deinit(struct usbh_bus *bus)
   usb_osal_msleep(1);
   USBFSH.BASE_CTRL = 0;
 
-  for (uint8_t i = 0; i < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); i++) 
+  for (std::uint8_t i = 0; i < sizeof(g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool) / sizeof(struct usbfs_pipe); i++)
   {
     if (g_usbfs_hcd[bus->hcd.hcd_id].pipe_pool[i].waitsem) 
     {
@@ -658,7 +666,7 @@ int usbh_roothub_control(struct usbh_bus *bus, struct usb_setup_packet *setup, u
         {
           g_usbfs_hcd[bus->hcd.hcd_id].speed = USB_SPEED_FULL;
         }
-      memcpy(buf, &status, 4);
+      std::memcpy(buf, &status, 4);
       break;
     }
     default:
@@ -696,7 +704,7 @@ int usbh_submit_urb(struct usbh_urb *urb)
     return -USB_ERR_BUSY;
   }
 
-  size_t flags = usb_osal_enter_critical_section();
+  std::size_t flags = usb_osal_enter_critical_section();
   struct usbfs_pipe *pipe = usbfs_pipe_alloc(bus, urb, urb->ep);
   if (!pipe) 
   {
@@ -764,12 +772,12 @@ int usbh_kill_urb(struct usbh_urb *urb)
   return 0;
 }
 
-void USBH_IRQHandler(uint8_t busid)
+extern "C" void vUSB1_ISR(std::uint8_t busid)
 {
   struct usbh_bus *bus = &g_usbhost_bus[busid];
 
   /* Get the interrupt flag */
-  uint8_t int_flag = USBFSH.INT_FG;
+  std::uint8_t int_flag = USBFSH.INT_FG;
 
   if (int_flag & USBFS_UIF_HST_SOF) 
   {
