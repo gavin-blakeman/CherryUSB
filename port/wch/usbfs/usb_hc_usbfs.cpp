@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "../../../core/usbh_core.h"
+#include "../../../core/usbh_core.hpp"
 #include "../../../class/hub/usbh_hub.h"
 
 // Standard C++ library header files
@@ -417,7 +417,7 @@ static void usbfs_transfer_complete(struct usbh_bus *bus, uint8_t recv_pid, size
   return;
 }
 
-extern "C" int usb_hc_init(struct usbh_bus *bus)
+int usb_hc_init(struct usbh_bus *bus)
 {
   // Clear the usb_hcd structure.
   std::memset(&g_usbfs_hcd[bus->hcd.hcd_id], 0, sizeof(struct usbfs_hcd));
@@ -445,7 +445,7 @@ extern "C" int usb_hc_init(struct usbh_bus *bus)
   return 0;
 }
 
-extern "C" int usb_hc_deinit(struct usbh_bus *bus)
+int usb_hc_deinit(struct usbh_bus *bus)
 {
   USBFSH.BASE_CTRL = USBFS_UC_RESET_SIE | USBFS_UC_CLR_ALL;
   usb_osal_msleep(1);

@@ -3,31 +3,29 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef USBH_CORE_H
-#define USBH_CORE_H
+#ifndef USBH_CORE_HPP
+#define USBH_CORE_HPP
 
-#include <stdbool.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdlib.h>
+// Standard C++ header files
+#include <cstring>
+#include <cstdint>
+#include <cstdlib>
 
+// CherryUSB header files
 #include "include/configuration.h"
 #include "../common/usb_util.h"
 #include "../common/usb_errno.h"
 #include "../common/usb_def.h"
 #include "../common/usb_list.h"
-//#include "../common/usb_log.h"
+#include "../common/usb_log.h"
 #include "../common/usb_hc.h"
 #include "../common/usb_osal.h"
 #include "../class/hub/usbh_hub.h"
 #include "../common/usb_ringbuffer.h"
+#include "../common/usb_memory.hpp"
 #include "../common/usb_mempool.h"
 #include "../common/usb_dcache.h"
 #include "../common/usb_version.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 enum usbh_event_type 
 {
@@ -59,13 +57,13 @@ enum usbh_event_type
 #define USB_HUB_INDEX_ANY 0
 #define USB_INTERFACE_ANY 0xff
 
-#define USB_CLASS_MATCH_VENDOR        0x0001
-#define USB_CLASS_MATCH_PRODUCT       0x0002
-#define USB_CLASS_MATCH_INTF_CLASS    0x0004
-#define USB_CLASS_MATCH_INTF_SUBCLASS 0x0008
-#define USB_CLASS_MATCH_INTF_PROTOCOL 0x0010
-#define USB_CLASS_MATCH_INTF_NUM      0x0020
-#define USB_CLASS_MATCH_VID_PID       (USB_CLASS_MATCH_VENDOR | USB_CLASS_MATCH_PRODUCT)
+constexpr std::uint16_t USB_CLASS_MATCH_VENDOR          {0x0001};
+constexpr std::uint16_t USB_CLASS_MATCH_PRODUCT         {0x0002};
+constexpr std::uint16_t USB_CLASS_MATCH_INTF_CLASS      {0x0004};
+constexpr std::uint16_t USB_CLASS_MATCH_INTF_SUBCLASS   {0x0008};
+constexpr std::uint16_t USB_CLASS_MATCH_INTF_PROTOCOL   {0x0010};
+constexpr std::uint16_t USB_CLASS_MATCH_INTF_NUM        {0x0020};
+constexpr std::uint16_t USB_CLASS_MATCH_VID_PID         {USB_CLASS_MATCH_VENDOR | USB_CLASS_MATCH_PRODUCT};
 
 #define CLASS_CONNECT(hport, i)    ((hport)->config.intf[i].class_driver->connect(hport, i))
 #define CLASS_DISCONNECT(hport, i) ((hport)->config.intf[i].class_driver->disconnect(hport, i))
@@ -96,12 +94,12 @@ typedef void (*usbh_event_handler_t)(uint8_t busid, uint8_t hub_index, uint8_t h
 
 struct usbh_class_info 
 {
-  uint8_t match_flags;           /* Used for product specific matches; range is inclusive */
-  uint8_t bInterfaceClass;       /* Base device class code */
-  uint8_t bInterfaceSubClass;    /* Sub-class, depends on base class. Eg. */
-  uint8_t bInterfaceProtocol;    /* Protocol, depends on base class. Eg. */
-  uint8_t bInterfaceNumber;      /* Interface number */
-  const uint16_t (*id_table)[2]; /* List of Vendor/Product ID pairs */
+  std::uint8_t match_flags;           /* Used for product specific matches; range is inclusive */
+  std::uint8_t bInterfaceClass;       /* Base device class code */
+  std::uint8_t bInterfaceSubClass;    /* Sub-class, depends on base class. Eg. */
+  std::uint8_t bInterfaceProtocol;    /* Protocol, depends on base class. Eg. */
+  std::uint8_t bInterfaceNumber;      /* Interface number */
+  const std::uint16_t (*id_table)[2]; /* List of Vendor/Product ID pairs */
   const struct usbh_class_driver *class_driver;
 };
 
@@ -110,8 +108,8 @@ struct usbh_class_driver
 {
   const char *driver_name;
   const char *driver_desc;
-  int (*connect)(struct usbh_hubport *hport, uint8_t intf);
-  int (*disconnect)(struct usbh_hubport *hport, uint8_t intf);
+  int (*connect)(usbh_hubport *hport, uint8_t intf);
+  int (*disconnect)(usbh_hubport *hport, uint8_t intf);
 };
 
 struct usbh_endpoint 
@@ -128,39 +126,39 @@ struct usbh_interface_altsetting
 struct usbh_interface 
 {
   char devname[CONFIG_USBHOST_DEV_NAMELEN];
-  struct usbh_class_driver *class_driver;
+  usbh_class_driver *class_driver;
   void *priv;
-  struct usbh_interface_altsetting altsetting[CONFIG_USBHOST_MAX_INTF_ALTSETTINGS];
+  usbh_interface_altsetting altsetting[CONFIG_USBHOST_MAX_INTF_ALTSETTINGS];
   uint8_t altsetting_num;
 };
 
 struct usbh_configuration 
 {
-  struct usb_configuration_descriptor config_desc;
-  struct usbh_interface intf[CONFIG_USBHOST_MAX_INTERFACES];
+  usb_configuration_descriptor config_desc;
+  usbh_interface intf[CONFIG_USBHOST_MAX_INTERFACES];
 };
 
 struct usbh_hubport 
 {
   bool connected;   /* True: device connected; false: disconnected */
-  uint8_t port;     /* Hub port index */
-  uint8_t dev_addr; /* device address */
-  uint8_t speed;    /* device speed */
-  uint8_t depth;    /* distance from root hub */
-  uint8_t route;    /* route string */
-  uint8_t slot_id;  /* slot id */
-  struct usb_device_descriptor device_desc;
-  struct usbh_configuration config;
+  std::uint8_t port;     /* Hub port index */
+  std::uint8_t dev_addr; /* device address */
+  std::uint8_t speed;    /* device speed */
+  std::uint8_t depth;    /* distance from root hub */
+  std::uint8_t route;    /* route string */
+  std::uint8_t slot_id;  /* slot id */
+  usb_device_descriptor device_desc;
+  usbh_configuration config;
   const char *iManufacturer;
   const char *iProduct;
   const char *iSerialNumber;
-  uint8_t *raw_config_desc;
-  struct usb_setup_packet *setup;
-  struct usbh_hub *parent;
-  struct usbh_hub *self; /* if this hubport is a hub */
-  struct usbh_bus *bus;
-  struct usb_endpoint_descriptor ep0;
-  struct usbh_urb ep0_urb;
+  osal_unique_ptr<std::uint8_t[]> raw_config_desc;
+  usb_setup_packet *setup;
+  usbh_hub *parent;
+  usbh_hub *self; /* if this hubport is a hub */
+  usbh_bus *bus;
+  usb_endpoint_descriptor ep0;
+  usbh_urb ep0_urb;
   usb_osal_mutex_t mutex;
 };
 
@@ -168,48 +166,49 @@ struct usbh_hub
 {
   bool connected;
   bool is_roothub;
-  uint8_t index;
-  uint8_t hub_addr;
-  uint8_t speed;
-  uint8_t nports;
-  uint8_t powerdelay;
-  uint8_t tt_think;
+  std::uint8_t index;
+  std::uint8_t hub_addr;
+  std::uint8_t speed;
+  std::uint8_t nports;
+  std::uint8_t powerdelay;
+  std::uint8_t tt_think;
   bool ismtt;
-  struct usb_hub_descriptor hub_desc;       /* USB 2.0 only */
-  struct usb_hub_ss_descriptor hub_ss_desc; /* USB 3.0 only */
-  struct usbh_hubport child[CONFIG_USBHOST_MAX_EHPORTS];
-  struct usbh_hubport *parent;
-  struct usbh_bus *bus;
-  struct usb_endpoint_descriptor *intin;
-  struct usbh_urb intin_urb;
-  uint8_t *int_buffer;
-  struct usb_osal_timer *int_timer;
+  usb_hub_descriptor hub_desc;       /* USB 2.0 only */
+  usb_hub_ss_descriptor hub_ss_desc; /* USB 3.0 only */
+  usbh_hubport child[CONFIG_USBHOST_MAX_EHPORTS];
+  usbh_hubport *parent;
+  usbh_bus *bus;
+  usb_endpoint_descriptor *intin;
+  usbh_urb intin_urb;
+  std::uint8_t *int_buffer;
+  usb_osal_timer *int_timer;
 };
 
-struct usbh_devaddr_map {
-    /**
-     * alloctab[0]:addr from 0~31
-     * alloctab[1]:addr from 32~63
-     * alloctab[2]:addr from 64~95
-     * alloctab[3]:addr from 96~127
-     *
-     */
-    uint8_t last;         /* Last device address */
-    uint32_t alloctab[4]; /* Bit allocation table */
+struct usbh_devaddr_map 
+{
+  /**
+   * alloctab[0]:addr from 0~31
+   * alloctab[1]:addr from 32~63
+   * alloctab[2]:addr from 64~95
+   * alloctab[3]:addr from 96~127
+   *
+   */
+  std::uint8_t last;         /* Last device address */
+  std::uint32_t alloctab[4]; /* Bit allocation table */
 };
 
 struct usbh_hcd 
 {
-  uintptr_t reg_base;
-  uint8_t hcd_id;
-  uint8_t roothub_intbuf[2]; /* at most 15 roothub ports */
-  struct usbh_hub roothub;
+  std::uintptr_t reg_base;
+  std::uint8_t hcd_id;
+  std::uint8_t roothub_intbuf[2]; /* at most 15 roothub ports */
+  usbh_hub roothub;
 };
 
 struct usbh_bus 
 {
   usb_slist_t list;
-  uint8_t busid;
+  std::uint8_t busid;
   struct usbh_hcd hcd;
   struct usbh_devaddr_map devgen;
   usb_osal_thread_t hub_thread;
@@ -230,14 +229,14 @@ static inline void usbh_control_urb_fill(struct usbh_urb *urb,
                                          usbh_complete_callback_t complete,
                                          void *arg)
 {
-    urb->hport = hport;
-    urb->ep = &hport->ep0;
-    urb->setup = setup;
-    urb->transfer_buffer = transfer_buffer;
-    urb->transfer_buffer_length = transfer_buffer_length;
-    urb->timeout = timeout;
-    urb->complete = complete;
-    urb->arg = arg;
+  urb->hport = hport;
+  urb->ep = &hport->ep0;
+  urb->setup = setup;
+  urb->transfer_buffer = transfer_buffer;
+  urb->transfer_buffer_length = transfer_buffer_length;
+  urb->timeout = timeout;
+  urb->complete = complete;
+  urb->arg = arg;
 }
 
 static inline void usbh_bulk_urb_fill(struct usbh_urb *urb,
@@ -249,14 +248,14 @@ static inline void usbh_bulk_urb_fill(struct usbh_urb *urb,
                                       usbh_complete_callback_t complete,
                                       void *arg)
 {
-    urb->hport = hport;
-    urb->ep = ep;
-    urb->setup = NULL;
-    urb->transfer_buffer = transfer_buffer;
-    urb->transfer_buffer_length = transfer_buffer_length;
-    urb->timeout = timeout;
-    urb->complete = complete;
-    urb->arg = arg;
+  urb->hport = hport;
+  urb->ep = ep;
+  urb->setup = NULL;
+  urb->transfer_buffer = transfer_buffer;
+  urb->transfer_buffer_length = transfer_buffer_length;
+  urb->timeout = timeout;
+  urb->complete = complete;
+  urb->arg = arg;
 }
 
 static inline void usbh_int_urb_fill(struct usbh_urb *urb,
@@ -323,7 +322,7 @@ int usbh_get_string_desc(struct usbh_hubport *hport, uint8_t index, uint8_t *out
  * @param altsetting Alternate setting value to set for the interface.
  * @return On success will return 0, and others indicate fail.
  */
-int usbh_set_interface(struct usbh_hubport *hport, uint8_t intf, uint8_t altsetting);
+int usbh_set_interface(usbh_hubport *hport, uint8_t intf, uint8_t altsetting);
 
 #if defined(CONFIG_USBHOST_MULT_HC)
 void usbh_register_hc_driver(uint8_t busid, const struct usbh_hc_driver *driver);
@@ -332,10 +331,6 @@ int usbh_initialize(uint8_t busid, uintptr_t reg_base, usbh_event_handler_t even
 int usbh_deinitialize(uint8_t busid);
 void *usbh_find_class_instance(const char *devname);
 struct usbh_hubport *usbh_find_hubport(uint8_t busid, uint8_t hub_index, uint8_t hub_port);
-uint8_t usbh_get_hport_active_config_index(struct usbh_hubport *hport);
+uint8_t usbh_get_hport_active_config_index(usbh_hubport *hport);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* USBH_CORE_H */
+#endif /* USBH_CORE_HPP */

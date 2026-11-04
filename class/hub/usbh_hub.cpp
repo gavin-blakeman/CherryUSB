@@ -8,9 +8,10 @@
 #include <charconv>
 #include <cstring>
 
-#include "../../core/usbh_core.h"
+#include "../../core/usbh_core.hpp"
 #include "usbh_hub.h"
 #include "../../common/usb_log.h"
+#include "../../common/stringFunctions.hpp"
 
 #undef USB_DBG_TAG
 #define USB_DBG_TAG "usbh_hub"
@@ -36,17 +37,19 @@ static uint32_t g_devinuse = 0;
 
 static struct usbh_hub *usbh_hub_class_alloc(void)
 {
-    uint8_t devno;
+  uint8_t devno;
 
-    for (devno = 0; devno < CONFIG_USBHOST_MAX_EXTHUBS; devno++) {
-        if ((g_devinuse & (1U << devno)) == 0) {
-            g_devinuse |= (1U << devno);
-            memset(&g_hub_class[devno], 0, sizeof(struct usbh_hub));
-            g_hub_class[devno].index = EXTHUB_FIRST_INDEX + devno;
-            return &g_hub_class[devno];
-        }
+  for (devno = 0; devno < CONFIG_USBHOST_MAX_EXTHUBS; devno++) 
+  {
+    if ((g_devinuse & (1U << devno)) == 0) 
+    {
+      g_devinuse |= (1U << devno);
+      memset(&g_hub_class[devno], 0, sizeof(struct usbh_hub));
+      g_hub_class[devno].index = EXTHUB_FIRST_INDEX + devno;
+      return &g_hub_class[devno];
     }
-    return NULL;
+  }
+  return NULL;
 }
 
 static void usbh_hub_class_free(struct usbh_hub *hub_class)
@@ -200,25 +203,26 @@ static int parse_hub_descriptor(struct usb_hub_descriptor *desc, uint16_t length
 
 static int parse_hub_ss_descriptor(struct usb_hub_ss_descriptor *desc, uint16_t length)
 {
-    (void)length;
+  (void)length;
 
-    if (desc->bLength < USB_SIZEOF_HUB_SS_DESC) {
-        USB_LOG_ERR("invalid device bLength 0x%02x\r\n", desc->bLength);
-        return -1;
-    } else if (desc->bDescriptorType != HUB_DESCRIPTOR_TYPE_HUB3) {
-        USB_LOG_ERR("unexpected descriptor 0x%02x\r\n", desc->bDescriptorType);
-        return -2;
-    } else {
-        USB_LOG_DBG("SuperSpeed Hub Descriptor:\r\n");
-        USB_LOG_DBG("bLength: 0x%02x             \r\n", desc->bLength);
-        USB_LOG_DBG("bDescriptorType: 0x%02x     \r\n", desc->bDescriptorType);
-        USB_LOG_DBG("bNbrPorts: 0x%02x           \r\n", desc->bNbrPorts);
-        USB_LOG_DBG("wHubCharacteristics: 0x%04x \r\n", desc->wHubCharacteristics);
-        USB_LOG_DBG("bPwrOn2PwrGood: 0x%02x      \r\n", desc->bPwrOn2PwrGood);
-        USB_LOG_DBG("bHubContrCurrent: 0x%02x    \r\n", desc->bHubContrCurrent);
-        USB_LOG_DBG("DeviceRemovable: 0x%02x     \r\n", desc->DeviceRemovable);
-    }
-    return 0;
+  if (desc->bLength < USB_SIZEOF_HUB_SS_DESC) 
+  {
+    USB_LOG_ERR("invalid device bLength 0x%02x\r\n", desc->bLength);
+    return -1;
+  } else if (desc->bDescriptorType != HUB_DESCRIPTOR_TYPE_HUB3) {
+      USB_LOG_ERR("unexpected descriptor 0x%02x\r\n", desc->bDescriptorType);
+      return -2;
+  } else {
+      USB_LOG_DBG("SuperSpeed Hub Descriptor:\r\n");
+      USB_LOG_DBG("bLength: 0x%02x             \r\n", desc->bLength);
+      USB_LOG_DBG("bDescriptorType: 0x%02x     \r\n", desc->bDescriptorType);
+      USB_LOG_DBG("bNbrPorts: 0x%02x           \r\n", desc->bNbrPorts);
+      USB_LOG_DBG("wHubCharacteristics: 0x%04x \r\n", desc->wHubCharacteristics);
+      USB_LOG_DBG("bPwrOn2PwrGood: 0x%02x      \r\n", desc->bPwrOn2PwrGood);
+      USB_LOG_DBG("bHubContrCurrent: 0x%02x    \r\n", desc->bHubContrCurrent);
+      USB_LOG_DBG("DeviceRemovable: 0x%02x     \r\n", desc->DeviceRemovable);
+  }
+  return 0;
 }
 #endif
 
@@ -338,9 +342,10 @@ static int usbh_hub_connect(struct usbh_hubport *hport, uint8_t intf)
     int ret;
 
     struct usbh_hub *hub = usbh_hub_class_alloc();
-    if (hub == NULL) {
-        USB_LOG_ERR("Fail to alloc hub_class\r\n");
-        return -USB_ERR_NOMEM;
+    if (hub == NULL) 
+    {
+      USB_LOG_ERR("Fail to alloc hub_class\r\n");
+      return -USB_ERR_NOMEM;
     }
 
     hub->hub_addr = hport->dev_addr;
@@ -437,30 +442,9 @@ static int usbh_hub_connect(struct usbh_hubport *hport, uint8_t intf)
 
     hub->connected = true;
 
-    static constexpr auto make_hub_devname = [](char* dest, size_t size, unsigned int index) -> bool
-    {
-      constexpr char prefix[] = "/dev/hub";
-      constexpr size_t prefix_len = sizeof(prefix) - 1;
-
-      if (size <= prefix_len)
-          return false;
-
-      std::memcpy(dest, prefix, prefix_len);
-
-      auto [ptr, ec] = std::to_chars(
-          dest + prefix_len,
-          dest + size - 1,
-          index
-      );
-
-      if (ec != std::errc{})
-          return false;
-
-      *ptr = '\0';
-      return true;
-    };
-
-    make_hub_devname(hport->config.intf[intf].devname, CONFIG_USBHOST_DEV_NAMELEN, hub->index);
+    constexpr char PREFIX[]{"/dev/hub"};
+    memcpy(hport->config.intf[intf].devname, PREFIX, sizeof(PREFIX));
+    appendNumber(hport->config.intf[intf].devname, CONFIG_USBHOST_DEV_NAMELEN - sizeof(PREFIX), hub->index);
 
     hub->int_buffer = g_hub_intbuf[hub->bus->busid][hub->index - 1];
 
@@ -768,7 +752,11 @@ int usbh_hub_initialize(struct usbh_bus *bus)
     return -USB_ERR_NOMEM;
   }
 
-  snprintf(thread_name, 32, "usbh_hub%u", bus->busid);
+  constexpr char szUSB_HUB[]{"usbh_hub"};
+
+  memcpy(thread_name, szUSB_HUB, sizeof(szUSB_HUB));
+  appendNumber(thread_name + sizeof(szUSB_HUB), sizeof(thread_name) - sizeof(szUSB_HUB), bus->busid);
+
   bus->hub_thread = usb_osal_thread_create(thread_name, CONFIG_USBHOST_PSC_STACKSIZE, CONFIG_USBHOST_PSC_PRIO, usbh_hub_thread, bus);
   if (bus->hub_thread == NULL) 
   {

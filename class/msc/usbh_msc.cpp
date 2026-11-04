@@ -3,15 +3,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "../../core/usbh_core.h"
+#include "../../core/usbh_core.hpp"
 #include "usbh_msc.h"
 #include "usb_scsi.h"
 
 #undef USB_DBG_TAG
 #define USB_DBG_TAG "usbh_msc"
 #include "../../common/usb_log.h"
-
-#define DEV_FORMAT "/dev/sd%c"
 
 #ifndef CONFIG_USBHOST_MSC_READY_CHECK_TIMES
 #define CONFIG_USBHOST_MSC_READY_CHECK_TIMES 10
@@ -327,7 +325,10 @@ static int usbh_msc_connect(struct usbh_hubport *hport, uint8_t intf)
         }
     }
 
-    snprintf(hport->config.intf[intf].devname, CONFIG_USBHOST_DEV_NAMELEN, DEV_FORMAT, msc_class->sdchar);
+    constexpr char DEV_FORMAT[]{"/dev/sd"};
+    memcpy(hport->config.intf[intf].devname, DEV_FORMAT, sizeof(DEV_FORMAT) - 1);
+    hport->config.intf[intf].devname[sizeof(DEV_FORMAT) - 1] = msc_class->sdchar;
+    hport->config.intf[intf].devname[sizeof(DEV_FORMAT)] = '\0';
 
     USB_LOG_INFO("Register MSC Class:%s\r\n", hport->config.intf[intf].devname);
 

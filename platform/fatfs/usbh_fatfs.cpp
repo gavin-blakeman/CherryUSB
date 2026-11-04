@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbh_fatfs.h"
-#include "../../core/usbh_core.h"
+#include "../../core/usbh_core.hpp"
 #include "../../class/msc/usbh_msc.h"
 
 // Standard C++ library
@@ -15,7 +15,7 @@ struct usbh_msc *active_msc_class;
 
 extern "C" int USB_disk_initialize()
 {
-  active_msc_class = (struct usbh_msc *)usbh_find_class_instance("/dev/sda");
+  active_msc_class = reinterpret_cast<usbh_msc *>(usbh_find_class_instance("/dev/sda"));
   if (active_msc_class == nullptr) 
   {
     return RES_NOTRDY;
@@ -50,7 +50,7 @@ extern "C" int USB_disk_read(BYTE *buff, LBA_t sector, UINT count)
     align_buf = reinterpret_cast<std::uint8_t *>(aligned_alloc(CONFIG_USB_ALIGN_SIZE, count * active_msc_class->blocksize));
     if (!align_buf) 
     {
-      //USB_LOG_ERR("msc get align buf failed\r\n");
+      USB_LOG_ERR("msc get align buf failed\r\n");
       return -USB_ERR_NOMEM;
     }
   }
@@ -79,7 +79,7 @@ int USB_disk_write(const BYTE *buff, LBA_t sector, UINT count)
   int ret;
   uint8_t *align_buf;
 
-  align_buf = (uint8_t *)buff;
+  align_buf = const_cast<std::uint8_t *>(reinterpret_cast<uint8_t const *>(buff));
 
   if ((uint32_t)buff & (CONFIG_USB_ALIGN_SIZE - 1)) 
   {

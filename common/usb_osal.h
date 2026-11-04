@@ -6,13 +6,12 @@
 #ifndef USB_OSAL_H
 #define USB_OSAL_H
 
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
+// Standard C++ library header files
+#include <cstdint>
+#include <cstring>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// CherryUSB++ Heade files
+#include "usb_memory.hpp"
 
 #define CONFIG_USB_OSAL_THREAD_SET_ARGV void *argument
 #define CONFIG_USB_OSAL_THREAD_GET_ARGV ((uintptr_t)argument)
@@ -75,8 +74,14 @@ void usb_osal_msleep(uint32_t delay);
 void *usb_osal_malloc(size_t size);
 void usb_osal_free(void *ptr);
 
-#ifdef __cplusplus
+template<typename T>
+using osal_unique_ptr = USB::unique_ptr<T, usb_osal_free>;
+
+template<typename T, typename... Args>
+[[nodiscard]]
+auto osal_make_unique(Args&&... args) noexcept
+{
+    return USB::make_unique<T, usb_osal_malloc, usb_osal_free>(std::forward<Args>(args)...);
 }
-#endif
 
 #endif /* USB_OSAL_H */

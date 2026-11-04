@@ -6,11 +6,8 @@
 #ifndef USB_HC_H
 #define USB_HC_H
 
-#include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+// Standard C++ header files
+#include <cstdint>
 
 typedef void (*usbh_complete_callback_t)(void *arg, int nbytes);
 
@@ -23,9 +20,9 @@ struct usbh_bus;
  */
 struct usbh_iso_frame_packet 
 {
-  uint8_t *transfer_buffer;
-  uint32_t transfer_buffer_length;
-  uint32_t actual_length;
+  std::uint8_t *transfer_buffer;
+  std::uint32_t transfer_buffer_length;
+  std::uint32_t actual_length;
   int errorcode;
 };
 
@@ -130,9 +127,5 @@ int usbh_kill_urb(struct usbh_urb *urb);
 
 /* called by user */
 void USBH_IRQHandler(uint8_t busid);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* USB_HC_H */
